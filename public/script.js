@@ -12,14 +12,39 @@ const nameO = document.getElementById('name-o');
 // Game State
 let localBoard = Array(9).fill(null);
 let currentTurn = 'X';
-let gameMode = 'local'; // 'local' or 'ai'
+let gameMode = 'local';
 let gameActive = true;
+
+let settings = {
+    difficulty: 'quantum',
+    sound: true,
+    vibration: true
+};
 
 // Navigation
 function showMainMenu() {
     mainMenu.classList.remove('hidden');
     gameView.classList.add('hidden');
     settingsModal.classList.add('hidden');
+    document.getElementById('local-setup').classList.add('hidden');
+}
+
+function showLocalSetup() {
+    document.getElementById('local-setup').classList.remove('hidden');
+}
+
+function startLocalWithNames() {
+    const p1 = document.getElementById('p1-name').value.trim() || 'Player X';
+    const p2 = document.getElementById('p2-name').value.trim() || 'Player O';
+
+    if (p1 === p2) {
+        alert("Please use unique names for each fighter!");
+        return;
+    }
+
+    gameMode = 'local_2p';
+    document.getElementById('local-setup').classList.add('hidden');
+    initGame(p1, p2);
 }
 
 function startLocalGame() {
@@ -42,7 +67,11 @@ function initGame(p1, p2) {
     nameX.textContent = p1;
     nameO.textContent = p2;
     renderBoard(localBoard);
-    statusMessage.textContent = `${p1.toUpperCase()} TURN`;
+    statusMessage.textContent = `${p1.toUpperCase()}'S TURN`;
+
+    // Reset active indicators
+    document.querySelector('.player-x-card').classList.add('active');
+    document.querySelector('.player-o-card').classList.remove('active');
 }
 
 function toggleSettings() {
@@ -69,7 +98,10 @@ function updateBoard() {
         const idx = cell.dataset.index;
         const val = localBoard[idx];
         cell.textContent = val || '';
-        cell.classList.remove('x', 'o');
+        cell.classList.remove('x', 'o', 'winner');
+        cell.style.borderColor = '';
+        cell.style.background = '';
+        cell.style.boxShadow = '';
         if (val) cell.classList.add(val.toLowerCase());
     });
 }
@@ -85,22 +117,70 @@ function handleCellClick(index) {
 }
 
 function makeMove(index) {
+    if (settings.vibration) navigator.vibrate?.(20);
+    playSfx(currentTurn === 'X' ? 'move-x' : 'move-o');
+
     localBoard[index] = currentTurn;
     updateBoard();
 
     const winResult = checkWin(localBoard);
     if (winResult) {
         gameActive = false;
-        const winnerName = currentTurn === 'X' ? nameX.textContent : nameO.textContent;
-        statusMessage.textContent = `${winnerName.toUpperCase()} WINS!`;
+        const winnerSymbol = localBoard[winResult[0]];
+        const winnerName = winnerSymbol === 'X' ? nameX.textContent : nameO.textContent;
+        statusMessage.textContent = `${winnerName.toUpperCase()} DOMINATES!`;
         highlightWinningLine(winResult);
+        playSfx('win');
     } else if (localBoard.every(c => c !== null)) {
         gameActive = false;
-        statusMessage.textContent = "STALEMATE!";
+        statusMessage.textContent = "SYSTEM STALEMATE";
+        playSfx('draw');
     } else {
         currentTurn = currentTurn === 'X' ? 'O' : 'X';
         const currentPlayerName = currentTurn === 'X' ? nameX.textContent : nameO.textContent;
-        statusMessage.textContent = `${currentPlayerName.toUpperCase()} TURN`;
+        statusMessage.textContent = `${currentPlayerName.toUpperCase()}'S TURN`;
+
+        // Update active player card UI
+        document.querySelector('.player-x-card').classList.toggle('active', currentTurn === 'X');
+        document.querySelector('.player-o-card').classList.toggle('active', currentTurn === 'O');
+    }
+}
+
+function playSfx(type) {
+    if (!settings.sound) return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    if (type === 'move-x') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start();
+        osc.stop(now + 0.1);
+    } else if (type === 'move-o') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start();
+        osc.stop(now + 0.1);
+    } else if (type === 'win') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.exponentialRampToValueAtTime(660, now + 0.5);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        osc.start();
+        osc.stop(now + 0.5);
     }
 }
 
@@ -118,38 +198,65 @@ function checkWin(board) {
 }
 
 function highlightWinningLine(line) {
+    const winnerSymbol = localBoard[line[0]];
+    const winnerColor = winnerSymbol === 'X' ? 'var(--neon-red)' : 'var(--neon-blue)';
+    const rgb = winnerSymbol === 'X' ? '255, 60, 92' : '0, 242, 255';
+
     line.forEach(idx => {
         const cell = document.querySelector(`.cell[data-index="${idx}"]`);
         if (cell) {
-            cell.style.background = 'rgba(255, 60, 92, 0.4)';
-            cell.style.boxShadow = '0 0 20px var(--neon-red)';
+            cell.style.borderColor = winnerColor;
+            cell.style.background = `rgba(${rgb}, 0.2)`;
+            cell.style.boxShadow = `0 0 30px ${winnerColor}`;
+            cell.classList.add('winner');
         }
     });
 }
 
-// AI Logic (Minimax)
+// AI Logic (Minimax with Difficulty)
 function makeAiMove() {
-    const bestMove = getBestMove(localBoard, 'O');
-    if (bestMove !== -1) {
-        makeMove(bestMove);
+    let move;
+    const diff = settings.difficulty;
+
+    if (diff === 'novice') {
+        move = getRandomMove();
+    } else if (diff === 'expert') {
+        // 40% chance of random move, 60% chance of best move
+        move = Math.random() < 0.4 ? getRandomMove() : getBestMove(localBoard, 'O');
+    } else {
+        move = getBestMove(localBoard, 'O');
     }
+
+    if (move !== -1) {
+        makeMove(move);
+    }
+}
+
+function getRandomMove() {
+    const available = localBoard.map((v, i) => v === null ? i : null).filter(v => v !== null);
+    return available[Math.floor(Math.random() * available.length)];
 }
 
 function getBestMove(board, aiSymbol) {
     let bestScore = -Infinity;
-    let move = -1;
+    let moves = [];
+
     for (let i = 0; i < 9; i++) {
         if (board[i] === null) {
             board[i] = aiSymbol;
             let score = minimax(board, 0, false, aiSymbol);
             board[i] = null;
+
             if (score > bestScore) {
                 bestScore = score;
-                move = i;
+                moves = [i];
+            } else if (score === bestScore) {
+                moves.push(i);
             }
         }
     }
-    return move;
+    // Pick a random move among the best ones for less predictability
+    return moves.length > 0 ? moves[Math.floor(Math.random() * moves.length)] : -1;
 }
 
 function minimax(board, depth, isMaximizing, aiSymbol) {
@@ -186,6 +293,23 @@ function minimax(board, depth, isMaximizing, aiSymbol) {
         return bestScore;
     }
 }
+
+// Settings Handlers
+document.getElementById('difficulty-select').addEventListener('change', (e) => {
+    settings.difficulty = e.target.value;
+});
+
+document.getElementById('sound-toggle').addEventListener('click', function () {
+    settings.sound = !settings.sound;
+    this.classList.toggle('active', settings.sound);
+    this.textContent = settings.sound ? 'ON' : 'OFF';
+});
+
+document.getElementById('vibe-toggle').addEventListener('click', function () {
+    settings.vibration = !settings.vibration;
+    this.classList.toggle('active', settings.vibration);
+    this.textContent = settings.vibration ? 'ON' : 'OFF';
+});
 
 document.getElementById('reset-game').addEventListener('click', () => {
     const p1 = nameX.textContent;

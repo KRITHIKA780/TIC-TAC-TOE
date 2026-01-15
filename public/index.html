@@ -18,6 +18,7 @@
     <div class="background-container">
         <img src="assets/bg.png" alt="Space" class="bg-img">
         <div class="overlay"></div>
+        <div class="scanlines"></div>
     </div>
 
     <!-- Main Menu View -->
@@ -36,21 +37,46 @@
         </div>
 
         <div class="menu-buttons">
-            <button class="menu-btn" onclick="startAiGame()">NEW GAME (VS AI)</button>
-            <button class="menu-btn" onclick="startLocalGame()">LOCAL GAME (2P)</button>
+            <button class="menu-btn" onclick="startAiGame()">VS QUANTUM AI</button>
+            <button class="menu-btn" onclick="showLocalSetup()">LOCAL 2 PLAYERS</button>
             <button class="menu-btn" onclick="toggleSettings()">SETTINGS</button>
+        </div>
+
+        <div id="local-setup" class="modal hidden">
+            <div class="modal-content">
+                <h3>LOCAL DUEL</h3>
+                <div class="input-group">
+                    <label>PLAYER X NAME</label>
+                    <input type="text" id="p1-name" placeholder="Fighter 1">
+                </div>
+                <div class="input-group">
+                    <label>PLAYER O NAME</label>
+                    <input type="text" id="p2-name" placeholder="Fighter 2">
+                </div>
+                <button class="menu-btn" onclick="startLocalWithNames()">BATTLE START</button>
+                <button class="action-btn"
+                    onclick="document.getElementById('local-setup').classList.add('hidden')">BACK</button>
+            </div>
         </div>
 
         <div id="settings-modal" class="modal hidden">
             <div class="modal-content">
                 <h3>SETTINGS</h3>
                 <div class="setting-item">
+                    <span>AI DIFFICULTY</span>
+                    <select id="difficulty-select" class="styled-select">
+                        <option value="novice">NOVICE</option>
+                        <option value="expert">EXPERT</option>
+                        <option value="quantum" selected>QUANTUM</option>
+                    </select>
+                </div>
+                <div class="setting-item">
                     <span>SOUND</span>
-                    <button class="toggle-btn active" onclick="this.classList.toggle('active')">ON</button>
+                    <button class="toggle-btn active" id="sound-toggle">ON</button>
                 </div>
                 <div class="setting-item">
                     <span>VIBRATION</span>
-                    <button class="toggle-btn active" onclick="this.classList.toggle('active')">ON</button>
+                    <button class="toggle-btn active" id="vibe-toggle">ON</button>
                 </div>
                 <button class="action-btn" onclick="toggleSettings()">CLOSE</button>
             </div>
@@ -65,7 +91,7 @@
                     <img id="avatar-x" src="assets/avatar_x.png" alt="X">
                     <div class="symbol-badge x-badge">X</div>
                 </div>
-                <span class="player-name" id="name-x">Alice</span>
+                <span class="player-name" id="name-x">Player 1</span>
             </div>
 
             <div class="game-timer">
@@ -79,7 +105,7 @@
                     <img id="avatar-o" src="assets/avatar_o.png" alt="O">
                     <div class="symbol-badge o-badge">O</div>
                 </div>
-                <span class="player-name" id="name-o">Bob</span>
+                <span class="player-name" id="name-o">Player 2</span>
             </div>
         </div>
 
